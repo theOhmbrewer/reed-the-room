@@ -239,7 +239,6 @@
 const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];
 const PC_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
-const ACC_SIGN = { '-1': '♭', '0': '♮', '1': '♯' };
 
 function makeNote(letterIdx, acc, octave) {
   return { letterIdx, acc, octave, midi: 12 * (octave + 1) + LETTER_PC[letterIdx] + acc, dia: octave * 7 + letterIdx };
@@ -850,15 +849,35 @@ const HS = 6, BOTTOM = 112, SVG_H = 170;            // half a line-space; y of t
 const yOf = dia => BOTTOM - (dia - 30) * HS;         // E4 has diatonic index 30
 const NOTE_COLORS = { current: '#c2410c', hit: '#16a34a', late: '#65a30d', miss: '#dc2626', wrong: '#d97706', past: '#9ca3af', todo: '#1d1d1d' };
 
-function prefixWidth(key, showTime) { return 46 + 9 * Math.abs(key) + (showTime ? 22 : 0) + 8; }
+const KEY_STEP = 11;   // space between key-signature sharps/flats
+function prefixWidth(key, showTime) { return 46 + KEY_STEP * Math.abs(key) + (showTime ? 22 : 0) + 8; }
+
+// Sharps, flats and naturals drawn as shapes (not font characters) so they're full size and bold on every phone.
+// (cx, cy) is the centre of the sign, level with the note it belongs to.
+function accSvg(acc, cx, cy, color) {
+  const c = color || 'currentColor';
+  if (acc > 0) return `<g stroke="${c}" fill="none" stroke-linecap="butt">` +
+    `<line x1="${cx - 2.5}" y1="${cy - 13}" x2="${cx - 2.5}" y2="${cy + 15}" stroke-width="1.5"/>` +
+    `<line x1="${cx + 2.5}" y1="${cy - 15}" x2="${cx + 2.5}" y2="${cy + 13}" stroke-width="1.5"/>` +
+    `<line x1="${cx - 6}" y1="${cy - 3}" x2="${cx + 6}" y2="${cy - 6.5}" stroke-width="3.4"/>` +
+    `<line x1="${cx - 6}" y1="${cy + 6.5}" x2="${cx + 6}" y2="${cy + 3}" stroke-width="3.4"/></g>`;
+  if (acc < 0) return `<g stroke="${c}" fill="none">` +
+    `<line x1="${cx - 3.5}" y1="${cy - 21}" x2="${cx - 3.5}" y2="${cy + 6}" stroke-width="1.6"/>` +
+    `<path d="M${cx - 3.5},${cy + 6} C${cx + 9},${cy - 1} ${cx + 6},${cy - 9} ${cx - 3.5},${cy - 2}" stroke-width="2.6"/></g>`;
+  return `<g stroke="${c}" fill="none" stroke-linecap="butt">` +
+    `<line x1="${cx - 3}" y1="${cy - 15}" x2="${cx - 3}" y2="${cy + 6}" stroke-width="1.5"/>` +
+    `<line x1="${cx + 3}" y1="${cy - 6}" x2="${cx + 3}" y2="${cy + 15}" stroke-width="1.5"/>` +
+    `<line x1="${cx - 3}" y1="${cy - 2.5}" x2="${cx + 3}" y2="${cy - 5}" stroke-width="3.4"/>` +
+    `<line x1="${cx - 3}" y1="${cy + 5}" x2="${cx + 3}" y2="${cy + 2.5}" stroke-width="3.4"/></g>`;
+}
 
 function prefixSvg(key, time, showTime) {
   let s = `<text x="4" y="${BOTTOM + 14}" font-size="80" fill="#222" font-family="'Noto Music','Segoe UI Symbol','Apple Symbols',serif">𝄞</text>`;
   const dias = key > 0 ? SHARP_DIA : FLAT_DIA;
   for (let i = 0; i < Math.abs(key); i++)
-    s += `<text x="${46 + i * 9}" y="${yOf(dias[i]) + (key > 0 ? 6 : 4)}" font-size="19" fill="#222">${key > 0 ? '♯' : '♭'}</text>`;
+    s += accSvg(key > 0 ? 1 : -1, 50 + i * KEY_STEP, yOf(dias[i]), '#222');
   if (showTime) {
-    const x = 46 + 9 * Math.abs(key) + 12;
+    const x = 46 + KEY_STEP * Math.abs(key) + 15;
     s += `<g font-size="25" font-weight="800" font-family="Georgia,serif" fill="#222" text-anchor="middle">` +
          `<text x="${x}" y="${BOTTOM - 26}">${time[0]}</text><text x="${x}" y="${BOTTOM - 2}">${time[1]}</text></g>`;
   }
@@ -875,7 +894,7 @@ function layoutScore(song) {
     if (!n.rest) {
       const k = n.letterIdx + ':' + n.octave;
       const current = k in measureAcc ? measureAcc[k] : keyA[n.letterIdx];
-      if (n.acc !== current) { n.showAcc = n.acc; x += 10; }
+      if (n.acc !== current) { n.showAcc = n.acc; x += 12; }
       measureAcc[k] = n.acc;
     }
     n.x = x;
@@ -924,7 +943,7 @@ function noteSvg(n, i) {
   const y = yOf(n.dia);
   for (let d = 28; d >= n.dia; d -= 2) s += `<line x1="${x - 12}" x2="${x + 12}" y1="${yOf(d)}" y2="${yOf(d)}" stroke-width="1.4"/>`;
   for (let d = 40; d <= n.dia; d += 2) s += `<line x1="${x - 12}" x2="${x + 12}" y1="${yOf(d)}" y2="${yOf(d)}" stroke-width="1.4"/>`;
-  if (n.showAcc != null) s += `<text x="${x - 22}" y="${y + (n.showAcc < 0 ? 4 : 6)}" font-size="19" stroke="none">${ACC_SIGN[n.showAcc]}</text>`;
+  if (n.showAcc != null) s += accSvg(n.showAcc, x - 18, y);
   const hollow = n.q >= 2;
   s += hollow
     ? `<ellipse cx="${x}" cy="${y}" rx="7.4" ry="5.2" transform="rotate(-20 ${x} ${y})" fill="none" stroke-width="2.2"/>`
