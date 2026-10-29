@@ -3,41 +3,56 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Clarinet Climb</title>
+<title>Reed the Room</title>
+<meta name="theme-color" content="#050a2e">
+<meta name="apple-mobile-web-app-title" content="Reed the Room">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-64.png">
 <style>
   :root {
-    --bg: #0f1720; --panel: #17222e; --panel2: #1f2d3b; --ink: #eef3f8; --muted: #8fa3b8;
-    --accent: #ffb84d; --good: #4ade80; --close: #facc15; --bad: #f87171;
-    --paper: #fbf7ee; --paper-ink: #1d1d1d;
+    --bg: #040823; --panel: #0a1240; --panel2: #111b57; --ink: #eef2ff; --muted: #8f9bd6;
+    --cyan: #22d3ee; --violet: #a855f7; --accent: #38e1ff; --line: #26338a;
+    --neon: linear-gradient(90deg, var(--cyan), #6366f1 55%, var(--violet));
+    --good: #4ade80; --close: #facc15; --bad: #f87171;
+    --paper: #f3f5ff; --paper-ink: #12163a;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  html, body { margin: 0; background: var(--bg); color: var(--ink);
+  html, body { margin: 0; color: var(--ink);
+    background: radial-gradient(ellipse at 50% -10%, #1b2a8f 0%, transparent 55%),
+      radial-gradient(ellipse at 100% 100%, #3b1170 0%, transparent 45%), var(--bg);
+    background-attachment: fixed; min-height: 100dvh;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   button, select, input, textarea { font: inherit; }
 
-  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel);
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+    padding-top: max(10px, env(safe-area-inset-top)); background: #0a1240e6; backdrop-filter: blur(8px);
+    border-bottom: 1px solid transparent; border-image: var(--neon) 1;
     position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
-  header h1 { font-size: 18px; margin: 0; margin-right: auto; letter-spacing: .3px; }
+  header h1 { font-size: 19px; margin: 0; margin-right: auto; letter-spacing: .3px; display: flex; align-items: center; gap: 9px; }
+  header h1 img { width: 30px; height: 30px; border-radius: 8px; box-shadow: 0 0 12px #6d5cff99; }
+  header h1 span { background: var(--neon); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 6px #4f7bff88); font-weight: 800; }
   .stats { display: flex; gap: 14px; }
   .stat { text-align: center; min-width: 46px; }
   .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
   .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-  .stat.hot b { color: var(--accent); }
+  .stat.hot b { color: var(--accent); text-shadow: 0 0 10px #22d3ee99; }
 
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(110px, 30vw, 300px); gap: 12px;
     padding: 12px 16px 24px; max-width: 1100px; margin: 0 auto; }
   .play { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 
   .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .controls select, .controls label { background: var(--panel2); color: var(--ink); border: 1px solid #2c3e50;
+  .controls select, .controls label { background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
     border-radius: 8px; padding: 7px 8px; font-size: 14px; flex: 0 0 auto; max-width: 100%; }
   .controls label { display: flex; align-items: center; gap: 6px; }
-  .start { background: var(--accent); color: #1a1205; border: 0; border-radius: 10px; padding: 10px 18px;
-    font-weight: 700; font-size: 16px; cursor: pointer; }
-  .start.on { background: #334155; color: var(--ink); }
+  .start { background: var(--neon); color: #fff; border: 0; border-radius: 10px; padding: 10px 18px;
+    font-weight: 800; font-size: 16px; cursor: pointer; box-shadow: 0 0 16px #5b6cff88; text-shadow: 0 1px 2px #0006; }
+  .start.on { background: var(--panel2); box-shadow: inset 0 0 0 1px var(--violet), 0 0 12px #a855f755; }
 
-  .card { background: var(--paper); border-radius: 14px; padding: 26px 4px 6px; position: relative; overflow: hidden; }
+  .card { background: var(--paper); border-radius: 14px; padding: 26px 4px 6px; position: relative; overflow: hidden;
+    box-shadow: 0 0 0 2px #4f6bff, 0 0 22px #22d3ee55, 0 0 40px #a855f733; }
   #staff { width: 100%; height: auto; display: block; max-height: 44vh; color: var(--paper-ink); }
   .badges { position: absolute; left: 10px; top: 6px; display: flex; gap: 6px; }
   .badge { background: #1d1d1d; color: #fff; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px; }
@@ -45,10 +60,10 @@
   .hint { position: absolute; right: 10px; top: 6px; color: #7a5b17; background: #fff0c9; border-radius: 6px;
     padding: 2px 8px; font-weight: 700; font-size: 13px; }
   .hint:empty { display: none; }
-  .timer { height: 5px; background: #e7dfcc; border-radius: 3px; overflow: hidden; margin: 2px 8px 0; }
-  #timerFill { height: 100%; width: 100%; background: #c2410c; }
+  .timer { height: 5px; background: #dde2fb; border-radius: 3px; overflow: hidden; margin: 2px 8px 0; }
+  #timerFill { height: 100%; width: 100%; background: var(--neon); }
   .countin { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    font-size: 80px; font-weight: 800; color: #c2410c; background: #fbf7eedd; }
+    font-size: 80px; font-weight: 800; color: #6d28d9; background: #f3f5ffdd; }
   .countin:empty { display: none; }
 
   .feedback { min-height: 52px; padding: 10px 14px; border-radius: 12px; background: var(--panel);
@@ -67,14 +82,15 @@
   #needle { position: absolute; top: -5px; width: 6px; height: 24px; margin-left: -3px; left: 50%;
     background: #fff; border-radius: 3px; box-shadow: 0 0 0 2px #0008; transition: left .08s; opacity: .25; }
   .cents-lbl { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
-  .meter { grid-column: 1 / -1; height: 4px; background: #0b1118; border-radius: 2px; overflow: hidden; }
-  #level-bar { display: block; height: 100%; width: 0; background: var(--muted); }
+  .meter { grid-column: 1 / -1; height: 4px; background: #050a2e; border-radius: 2px; overflow: hidden; }
+  #level-bar { display: block; height: 100%; width: 0; background: var(--neon); }
 
   .tappad { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-  .tappad button { background: var(--panel2); color: var(--ink); border: 1px solid #2c3e50; border-radius: 8px;
+  .tappad button { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
     padding: 12px 0; font-size: 15px; cursor: pointer; }
-  .tappad button:active { background: #2c3e50; }
+  .tappad button:active { background: var(--line); box-shadow: 0 0 10px #22d3ee66; }
 
+  .panel, .feedback, .tuner { border: 1px solid #1c2770; }
   .panel { background: var(--panel); border-radius: 12px; padding: 10px 14px; }
   .panel h2 { font-size: 14px; margin: 0 0 8px; color: var(--muted); font-weight: 600; display: flex; }
   .panel h2 button { margin-left: auto; background: none; border: 0; color: var(--muted); text-decoration: underline;
@@ -88,16 +104,16 @@
   .custom-form { display: grid; gap: 8px; margin-top: 10px; }
   .custom-form .row { display: flex; gap: 8px; flex-wrap: wrap; }
   .custom-form input, .custom-form select, .custom-form textarea { background: var(--panel2); color: var(--ink);
-    border: 1px solid #2c3e50; border-radius: 8px; padding: 7px 8px; font-size: 14px; min-width: 0; }
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font-size: 14px; min-width: 0; }
   .custom-form textarea { min-height: 90px; font-family: ui-monospace, Consolas, monospace; }
   .custom-form .help { font-size: 12px; color: var(--muted); line-height: 1.5; }
   .custom-form .err { color: var(--bad); font-size: 13px; white-space: pre-line; }
-  .custom-form button { background: var(--panel2); color: var(--ink); border: 1px solid #2c3e50; border-radius: 8px;
+  .custom-form button { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
     padding: 7px 12px; cursor: pointer; }
-  code { background: #0b1118; padding: 0 4px; border-radius: 4px; }
+  code { background: #050a2e; padding: 0 4px; border-radius: 4px; }
 
   .climb { position: sticky; top: 72px; height: calc(100dvh - 96px); min-height: 360px; border-radius: 14px;
-    overflow: hidden; background: #7cc4f5; }
+    overflow: hidden; background: #0a1050; box-shadow: 0 0 0 1px #3b4bd1, 0 0 20px #a855f744; }
   #wall { width: 100%; height: 100%; display: block; }
   .alt { position: absolute; left: 8px; top: 8px; background: #0009; padding: 4px 8px; border-radius: 8px;
     font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -116,7 +132,7 @@
 </head>
 <body>
 <header>
-  <h1>🎵 Clarinet Climb</h1>
+  <h1><img src="icon-64.png" alt=""><span>Reed the Room</span></h1>
   <div class="stats">
     <div class="stat"><b id="score">0</b><span>Score</span></div>
     <div class="stat hot"><b id="streak">0</b><span>Streak</span></div>
@@ -1222,13 +1238,17 @@ function drawWall(t, dt) {
   const sy = m => baseY - (m - C.shown) * ppm;
 
   const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, '#5aa9e6'); sky.addColorStop(1, '#cfeaff');
+  sky.addColorStop(0, '#050833'); sky.addColorStop(0.6, '#1a1470'); sky.addColorStop(1, '#3a1680');
   g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  // stars drift with the climb
+  g.fillStyle = '#ffffffaa';
+  for (let i = 0; i < 40; i++) { const y = ((hash(i + 900) * H + C.shown * 6) % H); g.fillRect(hash(i + 800) * W, y, 1.5, 1.5); }
 
   // rock face with jagged edges, from the ground up to the summit
   const lo = Math.floor(C.shown - baseY / ppm) - 2, hi = Math.ceil(C.shown + (H - baseY) / ppm) + 2;
   const top = sy(SUMMIT);
-  g.fillStyle = '#8b7355';
+  g.fillStyle = '#1b2266';
+  g.shadowColor = '#22d3ee'; g.shadowBlur = 14;
   g.beginPath();
   g.moveTo(W * 0.08, H + 5);
   const edgeLo = Math.max(0, lo), edgeHi = Math.min(SUMMIT, Math.ceil(C.shown + baseY / ppm) + 2);
@@ -1236,7 +1256,8 @@ function drawWall(t, dt) {
   if (edgeHi === SUMMIT) g.lineTo(W * 0.5, top - 26);
   for (let m = edgeHi; m >= edgeLo; m--) g.lineTo(W * (0.9 + 0.06 * hash(m + 50)), sy(m));
   g.lineTo(W * 0.92, H + 5);
-  g.closePath(); g.fill();
+  g.closePath(); g.fill(); g.shadowBlur = 0;
+  g.strokeStyle = '#7c6cff'; g.lineWidth = 1.5; g.stroke();
   // snow cap at the summit
   if (top > -40) {
     g.fillStyle = '#f8fafc';
@@ -1245,21 +1266,27 @@ function drawWall(t, dt) {
     g.fillStyle = '#ef4444'; g.beginPath(); g.moveTo(W * 0.5, top - 50); g.lineTo(W * 0.5 + 18, top - 44); g.lineTo(W * 0.5, top - 38); g.fill();
   }
   const ground = sy(0) + 34;   // just below the climber's feet at 0 m
-  if (ground < H) { g.fillStyle = '#4d7c0f'; g.fillRect(0, ground, W, H - ground); }
+  if (ground < H) {
+    const fl = g.createLinearGradient(0, 0, W, 0);
+    fl.addColorStop(0, '#0e7490'); fl.addColorStop(0.5, '#3730a3'); fl.addColorStop(1, '#7e22ce');
+    g.fillStyle = fl; g.fillRect(0, ground, W, H - ground);
+  }
 
-  // cracks + coloured holds
-  const holdColors = ['#f97316', '#22c55e', '#3b82f6', '#e11d48', '#a855f7'];
+  // cracks + glowing holds
+  const holdColors = ['#22d3ee', '#a855f7', '#f472b6', '#818cf8', '#4ade80'];
+  g.shadowBlur = 8;
   for (let m = Math.max(0, lo); m <= Math.min(SUMMIT - 1, hi); m++) {
-    g.strokeStyle = '#6b5640'; g.lineWidth = 1.5;
+    g.strokeStyle = '#2e3a8c'; g.lineWidth = 1.5; g.shadowColor = 'transparent';
     g.beginPath(); const cx = W * (0.2 + 0.6 * hash(m + 300)); g.moveTo(cx, sy(m)); g.lineTo(cx + 10 * (hash(m + 301) - .5), sy(m + 0.6)); g.stroke();
     for (let k = 0; k < 2; k++) {
       const id = m * 2 + k;
-      g.fillStyle = holdColors[id % holdColors.length];
+      g.fillStyle = g.shadowColor = holdColors[id % holdColors.length];
       g.beginPath();
       g.ellipse(W * (0.2 + 0.6 * hash(id)), sy(m + k * 0.5 + 0.2 * hash(id + 9)), 4 + 4 * hash(id + 7), 3 + 3 * hash(id + 8), hash(id + 3) * 3, 0, Math.PI * 2);
       g.fill();
     }
   }
+  g.shadowBlur = 0;
   // checkpoints every 10 m
   g.font = '11px system-ui'; g.textAlign = 'left';
   for (let c = 10; c < SUMMIT; c += 10) {
@@ -1274,7 +1301,7 @@ function drawWall(t, dt) {
   const sway = Math.sin(t * 16) * C.wobbleAmt * 10;
   const cx = W / 2 + sway, cy = baseY;
   const anchorY = sy(Math.floor(C.h / 10) * 10);
-  g.strokeStyle = '#facc15'; g.lineWidth = 2;
+  g.strokeStyle = '#38e1ff'; g.lineWidth = 2;
   g.beginPath(); g.moveTo(cx, cy + 8); g.quadraticCurveTo(cx + 14, (cy + anchorY) / 2, W / 2, anchorY); g.stroke();
 
   drawClimber(cx, cy, Math.max(0.8, Math.min(1.5, W / 150)), t);
