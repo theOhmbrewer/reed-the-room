@@ -158,9 +158,10 @@
       <label id="fogLabel" title="Hides the notes at the playhead so you have to read ahead"><input type="checkbox" id="fog"> 👻 Fog</label>
       <label id="clickLabel" title="Metronome click while playing (the count-in always clicks)"><input type="checkbox" id="metro"> Click</label>
       <select id="transpose" aria-label="Instrument">
-        <option value="2">B♭ clarinet</option>
-        <option value="3">A clarinet</option>
-        <option value="0">Concert pitch (piano/voice)</option>
+        <option value="bb">B♭ clarinet</option>
+        <option value="a">A clarinet</option>
+        <option value="violin">🎻 Violin</option>
+        <option value="concert">Concert pitch (piano/voice)</option>
       </select>
       <select id="input" aria-label="Input">
         <option value="mic">🎤 Microphone</option>
@@ -200,7 +201,7 @@
       <summary>➕ Add your own song</summary>
       <div class="custom-form">
         <div class="help">
-          Type notes in <b>written</b> pitch for your clarinet, separated by spaces.
+          Type notes in <b>written</b> pitch for your instrument, separated by spaces.
           <code>C5</code> = quarter, <code>C5/8</code> = eighth, <code>F#4/16</code> = sixteenth,
           <code>Bb4/4.</code> = dotted quarter, <code>E5/2</code> = half, <code>G4/1</code> = whole,
           <code>R/8</code> = eighth rest, <code>C5/4~ C5/8</code> = tie (held, not re-tongued).
@@ -331,14 +332,15 @@ const SONG_GROUPS = [
 
 // Turn a song spec into notes with pitch, length (in quarter beats) and start beat.
 function parseSong(spec) {
-  const errors = [], notes = [];
+  const errors = [], notes = [], floor = inst().floor && parsePitch(inst().floor).midi;
   for (const tok of spec.notes.trim().split(/\s+/)) {
     const m = /^(R|[A-G](?:b|#)?\d)(?:\/(1|2|4|8|16)(\.)?)?(~)?$/.exec(tok);
     if (!m) { errors.push(`Can't read "${tok}"`); continue; }
     const d = +(m[2] || 4), dot = !!m[3], q = (4 / d) * (dot ? 1.5 : 1);
     if (m[1] === 'R') { notes.push({ rest: true, d, dot, q }); continue; }
     let n = parsePitch(m[1]);
-    if (spec.concert) n = transposeUpStep(n);
+    if (spec.concert && inst().shift) n = transposeUpStep(n);
+    if (floor) while (n.midi < floor) n = makeNote(n.letterIdx, n.acc, n.octave + 1);   // too low for violin: up an octave
     notes.push(Object.assign(n, { d, dot, q, tie: !!m[4] }));
   }
   // a tie (~) joins a note to the next one of the same pitch: the second part is held, not played again
@@ -349,7 +351,7 @@ function parseSong(spec) {
     else { n.tie = false; errors.push(`Note ${i + 1}: a tie (~) needs the same note right after it`); }
   });
   let key = spec.key || 0;
-  if (spec.concert) { key += 2; if (key > 6) key -= 12; }
+  if (spec.concert && inst().shift) { key += 2; if (key > 6) key -= 12; }
   const time = spec.time || [4, 4], mlen = time[0] * 4 / time[1];
   let beat = 0;
   notes.forEach((n, i) => {
@@ -388,7 +390,7 @@ function generateFresh(tierNum) {
   const key = rand(tier.keys * 2 + 1) - tier.keys;
   const time = tierNum >= 3 && Math.random() < .3 ? [3, 4] : [4, 4];
   const mlen = time[0];
-  const keyA = keyAccs(key), lo = parsePitch(tier.range[0]).midi, hi = parsePitch(tier.range[1]).midi;
+  const keyA = keyAccs(key), lo = parsePitch(atLeastFloor(tier.range[0])).midi, hi = parsePitch(tier.range[1]).midi;
   const scale = [];
   for (let oct = 3; oct <= 6; oct++) for (let li = 0; li < 7; li++) {
     const n = makeNote(li, keyA[li], oct);
@@ -433,11 +435,32 @@ function generateFresh(tierNum) {
   return { label: `Fresh · ${keyName(key)} · tier ${tierNum}`, key, time, bpm: tier.bpm, notes: tokens.join(' ') };
 }
 
+// ===================== Instruments =====================
+// shift = semitones from the sounding pitch up to the written note. Each family keeps its own progress.
+const INSTRUMENTS = {
+  bb:      { shift: 2, family: 'clarinet' },
+  a:       { shift: 3, family: 'clarinet' },
+  violin:  { shift: 0, family: 'violin', floor: 'G3' },   // the open G string is the lowest note
+  concert: { shift: 0, family: 'clarinet' },
+};
+const inst = () => INSTRUMENTS[$('transpose').value] || INSTRUMENTS.bb;
+// Raise a range's bottom note to the instrument's lowest note.
+function atLeastFloor(tok) {
+  const f = inst().floor;
+  return f && parsePitch(tok).midi < parsePitch(f).midi ? f : tok;
+}
+
 // ===================== Saved progress (this device only) =====================
-const STORE_KEY = 'clarinetClimb.v1';
-let saved = { stats: {}, best: 0, flashLevel: 1, bpm: {}, freshTier: 1, custom: [] };
-try { saved = Object.assign(saved, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch (e) {}
-function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(saved)); } catch (e) {} }
+const STORE_KEYS = { clarinet: 'clarinetClimb.v1', violin: 'reedTheRoom.violin.v1' };
+const INSTRUMENT_KEY = 'reedTheRoom.instrument';
+let saved, savedFamily;
+function loadSaved(family) {
+  savedFamily = family;
+  saved = { stats: {}, best: 0, flashLevel: 1, bpm: {}, freshTier: 1, custom: [] };
+  try { saved = Object.assign(saved, JSON.parse(localStorage.getItem(STORE_KEYS[family]) || '{}')); } catch (e) {}
+}
+loadSaved('clarinet');
+function persist() { try { localStorage.setItem(STORE_KEYS[savedFamily], JSON.stringify(saved)); } catch (e) {} }
 
 // stats[key] = { seen, ok, ms }. Keys: a midi number (a note), "r:8." (a rhythm), "k:-3" (a key signature).
 function recordResult(key, ok, ms) {
@@ -471,6 +494,15 @@ const LEVELS = {
   altissimo: { label: 'Altissimo (C6–G6)',      lo: 'C6', hi: 'G6' },
   full:      { label: 'Everything (E3–G6)',     lo: 'E3', hi: 'G6' },
 };
+const VIOLIN_LEVELS = {
+  auto:  LEVELS.auto,
+  low:   { label: 'G & D strings (G3–G4)',   lo: 'G3', hi: 'G4' },
+  first: { label: 'First position (G3–B5)',  lo: 'G3', hi: 'B5' },
+  third: { label: 'Third position (C4–D6)',  lo: 'C4', hi: 'D6' },
+  high:  { label: 'Up the E string (E5–A6)', lo: 'E5', hi: 'A6' },
+  full:  { label: 'Everything (G3–A6)',      lo: 'G3', hi: 'A6' },
+};
+const levels = () => inst().family === 'violin' ? VIOLIN_LEVELS : LEVELS;
 const AUTO_LEVELS = [null,
   { lo: 'C4', hi: 'C5', keys: 0, chrom: false, time: 6000 },
   { lo: 'G3', hi: 'G5', keys: 0, chrom: false, time: 5000 },
@@ -485,8 +517,12 @@ const AUTO_LEVELS = [null,
 ];
 function flashConfig() {
   const lv = $('level').value;
-  if (lv === 'auto') return Object.assign({ auto: true, level: saved.flashLevel }, AUTO_LEVELS[saved.flashLevel]);
-  return { auto: false, lo: LEVELS[lv].lo, hi: LEVELS[lv].hi, keys: 0, chrom: $('accidentals').checked, time: 10000 };
+  if (lv === 'auto') {
+    const c = AUTO_LEVELS[saved.flashLevel];
+    return Object.assign({ auto: true, level: saved.flashLevel }, c, { lo: atLeastFloor(c.lo) });
+  }
+  const L = levels()[lv] || levels().full;
+  return { auto: false, lo: L.lo, hi: L.hi, keys: 0, chrom: $('accidentals').checked, time: 10000 };
 }
 
 // ===================== Game state =====================
@@ -1052,7 +1088,7 @@ function renderChips() {
 const A = { ctx: null, analyser: null, buf: null, stream: null,
             stableMidi: null, stableSince: 0, centsAvg: 0, silentSince: 0,
             peak: 0, dipped: true, lastOnset: 0, lastJudgeAt: 0 };
-const RMS_GATE = 0.008, MIN_F = 110, MAX_F = 1700, MIN_CLARITY = 0.8;
+const RMS_GATE = 0.008, MIN_F = 110, MAX_F = 1900, MIN_CLARITY = 0.8;
 let nsdf = null;
 
 // McLeod-style pitch detection: compare the wave with delayed copies of itself;
@@ -1154,7 +1190,7 @@ function audioTick(now) {
     return;
   }
   A.silentSince = 0;
-  const exact = 69 + 12 * Math.log2(freq / 440) + Number($('transpose').value);   // written pitch
+  const exact = 69 + 12 * Math.log2(freq / 440) + inst().shift;   // written pitch
   const midi = Math.round(exact), cents = (exact - midi) * 100;
   if (midi !== A.stableMidi) { A.stableMidi = midi; A.stableSince = now; A.lastOnset = now; A.centsAvg = cents; }
   else A.centsAvg = A.centsAvg * 0.8 + cents * 0.2;
@@ -1332,9 +1368,18 @@ function drawClimber(x, y, s, t) {
   const hands = falling ? [[-20, -34 + flail(0)], [20, -34 + flail(2)]] : [[-15, -32 - (up > 0 ? 8 : 0)], [15, -32 - (up < 0 ? 8 : 0)]];
   const feet = falling ? [[-14, 30 + flail(1)], [14, 30 + flail(3)]] : [[-12, 28 - (up < 0 ? 6 : 0)], [12, 28 - (up > 0 ? 6 : 0)]];
   g.lineCap = 'round'; g.lineJoin = 'round';
-  // clarinet strapped to their back
-  g.strokeStyle = '#111'; g.lineWidth = 4; g.beginPath(); g.moveTo(-14, 10); g.lineTo(12, -30); g.stroke();
-  g.fillStyle = '#cbd5e1'; [[-8, 1], [-2, -8], [4, -18]].forEach(([a, b]) => { g.beginPath(); g.arc(a, b, 1.6, 0, 7); g.fill(); });
+  if (inst().family === 'violin') {
+    // violin strapped to their back, scroll poking up past the shoulder
+    g.save(); g.translate(13, 0); g.rotate(0.3);
+    g.fillStyle = '#b45309'; g.beginPath(); g.ellipse(0, 7, 8, 9, 0, 0, 7); g.ellipse(0, -7, 6.5, 7, 0, 0, 7); g.fill();
+    g.strokeStyle = '#111'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(0, -12); g.lineTo(0, -28); g.stroke();
+    g.fillStyle = '#111'; g.beginPath(); g.arc(0, -29, 2.2, 0, 7); g.fill();
+    g.restore();
+  } else {
+    // clarinet strapped to their back
+    g.strokeStyle = '#111'; g.lineWidth = 4; g.beginPath(); g.moveTo(-14, 10); g.lineTo(12, -30); g.stroke();
+    g.fillStyle = '#cbd5e1'; [[-8, 1], [-2, -8], [4, -18]].forEach(([a, b]) => { g.beginPath(); g.arc(a, b, 1.6, 0, 7); g.fill(); });
+  }
   // limbs
   g.strokeStyle = '#1e293b'; g.lineWidth = 4;
   [[-7, -12], [7, -12]].forEach(([sx, sy], i) => { const [hx, hy] = hands[i]; g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo(sx * 2.4, (sy + hy) / 2, hx, hy); g.stroke(); });
@@ -1416,8 +1461,14 @@ function refreshView() {
   else { S.song = null; S.card = null; S.flashKey = 0; $('staff').innerHTML = ''; scoreSvg({ key: 0, time: [4, 4], notes: [], bars: [], beams: [] }, {}); renderChips(); updateBadges(); }
 }
 
+function fillLevelSelect() {
+  $('level').innerHTML = Object.entries(levels()).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+}
+
 function setupControls() {
-  $('level').innerHTML = Object.entries(LEVELS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  try { const last = localStorage.getItem(INSTRUMENT_KEY); if (INSTRUMENTS[last]) $('transpose').value = last; } catch (e) {}
+  loadSaved(inst().family);
+  fillLevelSelect();
   fillSongSelect();
   $('cKey').innerHTML = [0, 1, 2, 3, 4, 5, 6, -1, -2, -3, -4, -5, -6].map(k =>
     `<option value="${k}">${k === 0 ? 'No sharps/flats' : Math.abs(k) + (k > 0 ? ' ♯' : ' ♭')} (${keyName(k)})</option>`).join('');
@@ -1431,6 +1482,11 @@ function setupControls() {
 
   const reset = () => { if (S.running) stop(); refreshView(); };
   ['mode', 'level', 'song', 'style', 'accidentals'].forEach(id => $(id).addEventListener('change', reset));
+  $('transpose').addEventListener('change', () => {
+    try { localStorage.setItem(INSTRUMENT_KEY, $('transpose').value); } catch (e) {}
+    if (inst().family !== savedFamily) { loadSaved(inst().family); fillLevelSelect(); fillSongSelect(); }
+    reset(); updateHud();
+  });
   $('fog').addEventListener('change', applyScroll);
   $('input').addEventListener('change', () => {
     const tap = $('input').value === 'tap';
